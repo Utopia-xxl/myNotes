@@ -219,3 +219,113 @@ BFS（广度遍历算法）也是从层序中扩展出来的
 
 [889. 根据前序和后序遍历构造二叉树](https://leetcode-cn.com/problems/construct-binary-tree-from-preorder-and-postorder-traversal/)
 
+# 6. 二叉树序列化
+
+[参考资料](https://mp.weixin.qq.com/s?__biz=MzAxODQxMDM0Mw==&mid=2247485871&idx=1&sn=bcb24ea8927995b585629a8b9caeed01&chksm=9bd7f7a7aca07eb1b4c330382a4e0b916ef5a82ca48db28908ab16563e28a376b5ca6805bec2&mpshare=1&scene=23&srcid=0404eWQNMLt7v05HAoxrkMJX&sharer_sharetime=1649049520315&sharer_shareid=423c0785a9678b96a44bba6bc588c98e%23rd)
+
+JSON 的运用非常广泛，比如我们经常将变成语言中的结构体序列化成 JSON 字符串，存入缓存或者通过网络发送给远端服务，消费者接受 JSON 字符串然后进行反序列化，就可以得到原始数据了。这就是「序列化」和「反序列化」的目的，以某种固定格式组织字符串，使得数据可以独立于编程语言。
+
+那么假设现在有一棵用 Java 实现的二叉树，我想把它序列化字符串，然后用 C++ 读取这棵并还原这棵二叉树的结构，怎么办？这就需要对二叉树进行「序列化」和「反序列化」了。
+
+我们可以用 `serialize` 方法将二叉树序列化成字符串，用 `deserialize` 方法将序列化的字符串反序列化成二叉树，至于以什么格式序列化和反序列化，这个完全由你决定。
+
+## 6.1 前序遍历法
+
+比如如下二叉树（`#` 代表空指针 null），可以直观看出前序遍历做的事情：
+
+![图片](./picture/7.png)
+
+```C++
+// 辅助函数，将二叉树序列化存入ret    
+void rserialize(TreeNode* root, string& str) {
+        if (root == nullptr) {
+            str += "#,";
+        } else {
+            // 前序遍历，将子问题分解到左右两个子树处理
+            str += to_string(root->val) + ",";
+            rserialize(root->left, str);
+            rserialize(root->right, str);
+        }
+    }
+
+    string serialize(TreeNode* root) {
+        string ret;
+        rserialize(root, ret);
+        return ret;
+    }
+// ret = "1,2,#,4,#,#,3,#,#,"
+```
+
+反序列化的问题就变为利用前序遍历的结构还原一颗二叉树
+
+PS：一般语境下，单单前序遍历结果是不能还原二叉树结构的，因为缺少空指针的信息，至少要得到前、中、后序遍历中的两种才能还原二叉树。但是这里的 `node` 列表包含空指针的信息，所以只使用 `node` 列表就可以还原二叉树。
+
+那么，反序列化过程也是一样，**先确定根节点 `root`，然后遵循前序遍历的规则，递归生成左右子树即可**：
+
+![图片](./picture/8.png)
+
+分割字符串`nodes = data.split(",");`
+
+
+```C++ 
+TreeNode* rdeserialize(list<string>& dataArray) {
+        if (dataArray.front() == "#") {
+            dataArray.erase(dataArray.begin());
+            return nullptr;
+        }
+				// 构建根节点
+        TreeNode* root = new TreeNode(stoi(dataArray.front()));
+        dataArray.erase(dataArray.begin());
+        root->left = rdeserialize(dataArray);
+        root->right = rdeserialize(dataArray);
+        return root;
+    }
+```
+
+## 6.2 后序遍历法
+
+后序遍历生成的序列化字符串和前序遍历的不同，因此在解序列化字符串时也要做出相应的修改
+
+![图片](./picture/9.png)
+
+`root` 的值是列表的最后一个元素。我们应该从后往前取出列表元素，先用最后一个元素构造 `root`，然后递归调用生成 `root` 的左右子树。**注意，根据上图，从后往前在 `nodes` 列表中取元素，一定要先构造 `root.right` 子树，后构造 `root.left` 子树**。
+
+```c++
+    TreeNode* rdeserialize(list<string>& dataArray) {
+        if (dataArray.back() == "#") {
+            dataArray.pop_back();
+            return nullptr;
+        }
+        TreeNode* root = new TreeNode(stoi(dataArray.back()));
+        dataArray.pop_back();
+        root->right = rdeserialize(dataArray);
+        root->left = rdeserialize(dataArray);
+        return root;
+    }
+```
+
+## 6.3 中序遍历法
+
+先说结论，中序遍历的方式行不通，因为无法实现反序列化方法 `deserialize`。
+
+序列化方法 `serialize` 依然容易，只要把字符串的拼接操作放到中序遍历的位置就行了：
+
+```
+/* 辅助函数，将二叉树存入 StringBuilder */
+void serialize(TreeNode root, StringBuilder sb) {
+    if (root == null) {
+        sb.append(NULL).append(SEP);
+        return;
+    }
+
+    serialize(root.left, sb);
+    /****** 中序遍历位置 ******/
+    sb.append(root.val).append(SEP);
+    /***********************/
+    serialize(root.right, sb);
+}
+```
+
+但是，我们刚才说了，要想实现反序列方法，首先要构造 `root` 节点。前序遍历得到的 `nodes` 列表中，第一个元素是 `root` 节点的值；后序遍历得到的 `nodes` 列表中，最后一个元素是 `root` 节点的值。
+
+你看上面这段中序遍历的代码，`root` 的值被夹在两棵子树的中间，也就是在 `nodes` 列表的中间，我们不知道确切的索引位置，所以无法找到 `root` 节点，也就无法进行反序列化。
