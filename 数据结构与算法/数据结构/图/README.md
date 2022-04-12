@@ -19,6 +19,22 @@ struct Vertex{
 
 由于有向图的边有方向，所以有向图中每个节点「度」被细分为**入度**（indegree）和**出度**（outdegree）
 
+一般会给出一个二维数组记录的信息，将二维数组上的信息构建成图，给出邻接表的实现
+
+```C++
+    vector<vector<int> > buildGraph(int numCourses,vector<vector<int> >& prerequisites){
+        // 将图存储为邻接表
+        vector<vector<int> > graph(numCourses,vector<int>{});
+        // 初始化graph
+        for(auto edge : prerequisites){
+            graph[edge[1]].push_back(edge[0]);
+        }
+        return graph;
+    }
+```
+
+
+
 # 图的遍历
 
 图的遍历是指从图中的某一个顶点出发，按照某种搜索方法沿着图中的边对图中的所有顶点访问一次且仅访问一次。
@@ -114,6 +130,57 @@ for(int i=0;i<queLen;i++){
 
 ## 环检测算法BFS
 
+BFS判断是否有环的思路：
+
+1. 构建邻接表，边的方向表示 被依赖 关系
+2. 构建一个indegree数组记录每个节点的入度，即indegree[i]记录节点i的入度
+3. 对BFS队列进行初始化，将入度为0的节点首先装入队列
+4. 开始执行BFS循环，不断弹出队列中的节点，减少相邻节点的入度，并将入度为0的节点加入队列
+5. 如果最终所有节点都被遍历过，则说明不存在环，负责 **存在剩下节点组成的环**
+
+```c++
+    bool canFinish(int numCourses, vector<vector<int> >& prerequisites) {
+        // 判断是否有循环引用的情况，即可说明是否可以完成
+        // 根据数据生成Graph然后判断是否存在环
+        
+        // 1. 构建图
+        vector<vector<int>> graph = buildGraph(numCourses,prerequisites);
+
+        // 2. 构建入度数组
+        vector<int> indgree(numCourses,0);
+        for(vector<int> edge:prerequisites){
+            indgree[edge[0]]++;
+        }
+        // 3. 判断是否有环(BFS)
+        queue<int> que;
+        // 初始化，将度为0的节点入队
+        for(int i=0;i<numCourses;i++){
+            if(indgree[i] == 0){
+                // 节点i没有入度，即没有依赖的节点
+                // 可以作为拓扑排序的起点，加入队列
+                que.push(i);
+            }
+        }
+        int count = 0; // 记录遍历的节点数
+        // 标准度BFS模版
+        while(!que.empty()){
+            // 弹出节点 cur，并将它指向的节点的入度减一
+            int cur = que.front();
+            que.pop();
+            count++;
+            for(int node : graph[cur]){
+                indgree[node]--;
+                if(indgree[node]==0){
+                    // 如果入度为0，说明node已经没有依赖
+                    que.push(node);
+                }
+            }
+        }
+        // 如果所有节点都被遍历过则表示，没有换
+        return count==numCourses;
+    }
+```
+
 
 
 ## 拓扑排序算法DFS
@@ -125,3 +192,174 @@ for(int i=0;i<queLen;i++){
 对于代码实现而言，**拓扑排序首先要判断图不带环，然后就是后序遍历图的结果然后反转，就是拓扑排序的结果**
 
 因此我们只需要在环检测DFS的基础上在后序遍历部分加上对每个节点的记录，然后进行反转就行了。
+
+```c++
+    void traverse(vector<vector<int>> &graph,int s){
+        if(onPath[s]){
+            // 发现环,路径上如果有相同的节点
+            hasCycle = true;
+        }
+        if(visited[s]||hasCycle){
+            return;
+        }
+        // 类似回溯算法的做法
+        visited[s] = true;
+        onPath[s] = true;
+        for(int node:graph[s]){
+            traverse(graph, node);
+        }
+        onPath[s] = false;
+        postOrder.push_back(s);
+    }
+```
+
+
+
+## 拓扑排序算法BFS
+
+拓扑排序和环检测BFS的算法基本一致，只需求记录出队的节点顺序，即可得到拓扑排序的节点，前提是图没有环
+
+# 并查集
+
+并查集算法，主要是解决图论中「动态连通性」问题的。
+
+连通是一种等价关系，具有如下三个性质：
+
+1. ⾃反性：节点 p 和 p 是连通的。 
+2. 对称性：如果节点 p 和 q 连通，那么 q 和 p 也连通。
+3. 传递性：如果节点 p 和 q 连通，q 和 r 连通，那么 p 和 r 也连通。
+
+## 实现并查集
+
+### 初始状态
+
+我们使用森林来表示图的连通性,我们设定数的每个节点有一个指针指向其父节点,如果是根节点的话,这个指针指向自己。
+
+初始状态时，没有互相连通
+
+![image-20220412233540026](pictures/image-20220412233540026.png)
+
+```c++
+class UF{   
+private:
+    // 记录连通分量
+    int count;
+    // 节点x的节点是parent[x]
+    vector<int> parent;   
+public:
+    // 构造函数，n为图的节点个数
+    UF(int n){
+        // 一开始互不连通
+        this->count = n;
+        // 父节点指针初始指向自己
+        parent.resize(n);
+        for(int i=0;i<n;i++){
+            parent[i] = i;
+        }
+    }
+};
+```
+
+如果两个节点连通，则让其中的（任意）一个节点接到另一个节点的根节点上：
+
+![image-20220413002644876](pictures/image-20220413002644876.png)
+
+```C++
+void UF::Union(int p, int q){
+    int rootP = find(p);
+    int rootQ = find(q);
+    if(rootP == rootQ)
+        return;
+    // 将两棵树合并为1棵
+    parent[rootP] = rootQ;
+    count--; // 两个连通分量合二为一
+}
+
+// 返回某个节点x的根节点
+int UF::find(int x){
+    // 根节点的parent[x] == x
+    while (parent[x]!=x) {
+        x = parent[x];
+    }
+    return x;
+}
+```
+
+这样的话，如果p和q相连，**它们一定拥有相同的根节点：**
+
+![image-20220413004343948](pictures/image-20220413004343948.png)
+
+```c++
+bool UF::connected(int p, int q){
+    return find(p)==find(q);
+}
+```
+
+到此，一个最基本的并查集就完成了
+
+find 主要功能就是从某个节点向上遍历到树根，其时间复杂度就是树的⾼度。我们可能习惯性地认为树的⾼ 度就是 logN，但这并不⼀定。logN 的⾼度只存在于平衡⼆叉树，对于⼀般的树可能出现极端不平衡的情 况，使得「树」⼏乎退化成「链表」，树的⾼度最坏情况下可能变成 N。
+
+### 平衡性优化
+
+```C++
+void UF::Union(int p, int q){
+    int rootP = find(p);
+    int rootQ = find(q);
+    if(rootP == rootQ)
+        return;
+    // 将两棵树合并为1棵
+    parent[rootP] = rootQ;
+    count--; // 两个连通分量合二为一
+}
+```
+
+union只是简单把p所在的树接到了q下面，很容易出现不平衡的现象
+
+利用一个size数组，将节点树较少的树节点节点数大的树，实现平衡优化
+
+```C++
+ // ⼩树接到⼤树下⾯，较平衡
+ if (size[rootP] > size[rootQ]) {
+ 	   parent[rootQ] = rootP;
+ 	   size[rootP] += size[rootQ];
+ } else {
+ 	   parent[rootP] = rootQ;
+ 	   size[rootQ] += size[rootP];
+ }
+```
+
+就可以将find的时间复杂度优化到logN级别
+
+### 路径压缩
+
+非常巧妙的优化，将树的高度压缩到常数级别
+
+![image-20220413005904563](pictures/image-20220413005904563.png)
+
+这样 find 就能以 O(1) 的时间找到某⼀节点的根节点，相应的，connected 和 union 复杂度都下降为 O(1)。
+
+要做到这⼀点，⾮常简单，只需要在 find 中加⼀⾏代码：
+
+```C++
+// 返回某个节点x的根节点
+int UF::find(int x){
+    // 根节点的parent[x] == x
+    while (parent[x]!=x) {
+        // 进行路径压缩
+        parent[x] = parent[parent[x]];
+        x = parent[x];
+    }
+    return x;
+}
+```
+
+Union-Find 算法的复杂度可以这样分析：构造函数初始化数据结构需要 O(N) 的时间和空间复杂度；连通两 个节点 union、判断两个节点的连通性 connected、计算连通分量 count 所需的时间复杂度均为 O(1)。
+
+### 过程总结
+
+1、⽤ parent 数组记录每个节点的⽗节点，相当于指向⽗节点的指针，所以 parent 数组内实际存储着⼀个 森林（若⼲棵多叉树）。
+
+ 2、⽤ size 数组记录着每棵树的重量，⽬的是让 union 后树依然拥有平衡性，保证各个 API 时间复杂度为 O(logN)，⽽不会退化成链表影响操作效率。 
+
+3、在 find 函数中进⾏路径压缩，保证任意树的⾼度保持在常数，使得各个 API 时间复杂度为 O(1)。使⽤了 路径压缩之后，可以不使⽤ size 数组的平衡优化。
+
