@@ -17,14 +17,7 @@ struct Cmp{
         return a.distFromStart > b.distFromStart;
     }
 };
-class Dijkstra{
-public:
-    int weight(int from,int to){
 
-    }
-    Dijkstra(){
-
-    }
     // 输入一个图和一个起点start，计算start到其他节点的最短路径
     vector<int> dijkstra(int start,vector<vector<int>> &graph){
         int n = graph.size(); // 节点个数
@@ -59,5 +52,4 @@ public:
         }
         return distTo;
     }
-};
 

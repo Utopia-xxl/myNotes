@@ -1,6 +1,10 @@
 #include <iostream>
-#in
+#include <vector>
+
+using namespace std;
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    cout << "Hello, World!" << endl;
+    vector<vector<int>> graph(10,vector<int>{});
+    graph[0].push_back(1);
     return 0;
 }

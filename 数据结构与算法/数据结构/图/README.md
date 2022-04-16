@@ -428,3 +428,116 @@ Prim 算法不需要事先对所有边排序，⽽是利⽤优先级队列动态
 
 如果是无权图的最短路径问题，我们就可以直接使用BFS算法求解，但是对于有权图来说并不适用
 
+![img](pictures/2.jpeg)
+
+## 例题
+
+### [1631. 最小体力消耗路径](https://leetcode-cn.com/problems/path-with-minimum-effort/)
+
+根据题意要求起点到总点的最小体力值，也就是整个最小路径上权重最大的边
+
+利用最短路径迪杰斯特拉肯定能求解，返回最短路径上的最大值
+
+也可以利用并查集+kriskal的思想，当起点和终点连通，那么最后加入的那条边就是整个路径上权重最大的
+
+```C++
+int minimumEffortPath(vector<vector<int>>& heights) {
+        // Edge. <int p1,int p2, int weight>
+        // 1. build graph
+        int m=heights.size(),n=heights[0].size();
+        vector<vector<int>> dir{{-1,0},{1,0},{0,-1},{0,1}};
+        vector<Edge> edges;
+        for(int i=0;i<m;i++){
+            for(int j=0;j<n;j++){
+                // 每个顶点要向4个方向构建边
+                for(int ii=0;ii<4;ii++){
+                    int x = i+dir[ii][0];
+                    int y = j+dir[ii][1];
+                    if(x>=0&&y>=0&&x<m&&y<n){
+                        // 节点是合法的
+                        edges.push_back({i*n+j,x*n+y,abs(heights[i][j]-heights[x][y])});
+                    }
+                }
+            }
+        }
+        int num = m*n;  // n为图中的节点
+        int mst = 0; //最小权值和
+        // 根据Kruskal的算法思想，对所有边排序选最短的,从小到大排序好
+        sort(edges.begin(), edges.end(), [](Edge a, Edge b) -> int { return a.weight < b.weight; });
+        UnionFind uf(num);
+        for(auto &edge:edges){
+            int u = edge.p1;
+            int v = edge.p2;
+            int weight = edge.weight;
+            uf.Union(u,v);
+            // 若起点和终点是连通的
+            if(uf.connected(0,m*n-1)){
+                return weight;
+            }
+        }
+        return 0;
+    }
+```
+也可以利用迪杰斯特拉迪思想，计算起点到终点的最小路径 
+只不过要根据题意修改，不计算整个路径和，而是计算整个路径上的最大体力值
+
+```c++
+int distToNextNode = max(distTo[curNodeID], abs(heights[curNodeID/n][curNodeID%n]-heights[nextNodeID/n][nextNodeID%n]));
+if(curNodeID==m*n-1){
+   return curDistFromStart;
+}
+```
+
+# 二分图判定
+
+## 二分图简介
+
+`二分图的顶点集可分割为两个互不相交的子集，图中每条边依附的两个顶点都分属于这两个子集，且两个子集内的顶点不相邻。`
+
+![img](pictures/0.png)
+
+这就是图的「双色问题」，其实这个问题就等同于二分图的判定问题，如果你能够成功地将图染色，那么这幅图就是一幅二分图，反之则不是：
+
+![img](pictures/1.jpg)
+
+## 二分图的判定思路
+
+判定二分图的算法很简单，就是用代码解决「双色问题」。
+
+**说白了就是遍历一遍图，一边遍历一边染色，看看能不能用两种颜色给所有节点染色，且相邻节点的颜色都不相同**。
+
+```C++
+/* 二叉树遍历框架 */
+void traverse(TreeNode root) {
+    if (root == null) return;
+    traverse(root.left);
+    traverse(root.right);
+}
+
+/* 多叉树遍历框架 */
+void traverse(Node root) {
+    if (root == null) return;
+    for (Node child : root.children)
+        traverse(child);
+}
+
+/* 图遍历框架 */
+boolean[] visited;
+void traverse(Graph graph, int v) {
+    // 防止走回头路进入死循环
+    if (visited[v]) return;
+    // 前序遍历位置，标记节点 v 已访问
+    visited[v] = true;
+    for (TreeNode neighbor : graph.neighbors(v))
+        traverse(graph, neighbor);
+}
+```
+
+### 深度优先/广度优先搜索
+
+我们使用图搜索算法从各个连通域的任一顶点开始遍历整个连通域，遍历的过程中用两种不同的颜色对顶点进行染色，相邻顶点染成相反的颜色。这个过程中倘若发现相邻的顶点被染成了相同的颜色，说明它不是二分图；反之，如果所有的连通域都染色成功，说明它是二分图。
+
+### 并查集
+
+我们知道如果是二分图的话，那么图中每个顶点的所有邻接点都应该属于同一集合，且不与顶点处于同一集合。因此我们可以使用并查集来解决这个问题，我们遍历图中每个顶点，将当前顶点的所有邻接点进行合并，并判断这些邻接点中是否存在某一邻接点已经和当前顶点处于同一个集合中了，若是，则说明不是二分图。
+
