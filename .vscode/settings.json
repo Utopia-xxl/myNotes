@@ -3,5 +3,6 @@
         "vector": "cpp",
         "iosfwd": "cpp",
         "iterator": "cpp"
-    }
+    },
+    "liveServer.settings.port": 8081
 }
